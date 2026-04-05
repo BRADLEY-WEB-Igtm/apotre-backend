@@ -1,7 +1,6 @@
 package com.doctrine.apotres.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,74 +11,48 @@ import com.doctrine.apotres.entity.Publication.StatutPublication;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * ============================================================
- * DTOs — Data Transfer Objects
+ * DTOs PUBLICATION — VERSION CORRIGÉE
  *
- * Un DTO est un objet qui transporte les données entre le
- * frontend (HTML/JS) et le backend (Java).
- *
- * Pourquoi ne pas envoyer directement l'entité ?
- * → L'entité contient parfois des données sensibles (ex: mot de passe)
- * → Le DTO permet de contrôler exactement ce qui est envoyé/reçu
- * → Évite les références circulaires (Publication → Commentaire → Publication...)
+ * CORRECTION dans Response :
+ * - Ajout de List<String> cheminsAudio pour les audios illimités
+ * - Les anciens champs cheminAudio/2/3 conservés (backward compat)
  * ============================================================
  */
 public class PublicationDTO {
 
     /**
-     * DTO pour RECEVOIR les données de création/modification
-     * (depuis le formulaire publication.html du dashboard)
-     * "Request" = données envoyées par le client vers le serveur
+     * DTO pour RECEVOIR les données (depuis le formulaire dashboard)
      */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Request {
 
-        // Type obligatoire — détermine le formulaire affiché
         @NotNull(message = "Le type est obligatoire")
         private TypePublication type;
 
-        // Titre obligatoire
         @NotBlank(message = "Le titre est obligatoire")
         private String titre;
 
-        // Contenu texte (optionnel selon le type)
         private String contenu;
-
-        // Catégorie (ex: "Évangiles", "Enseignements")
         private String categorie;
-
-        // Sous-catégorie
         private String sousCategorie;
-
-        // Statut demandé (PUBLIE ou BROUILLON)
         private StatutPublication statut;
-
-        // Lien vidéo YouTube (pour le type VIDÉO)
         private String lienVideo;
-
-        // Jour du Zoom (LUNDI ou JEUDI)
         private String jourZoom;
-
-        // Date de la session Zoom ou Radio
         private String dateSession;
-
-        // Tags séparés par virgules
         private String tags;
-        private String resume;       // Résumé court
-        private String predicateur; // Prédicateur/Orateur
-
-        // Autoriser les commentaires ?
+        private String resume;
+        private String predicateur;
         private Boolean commentairesActifs;
     }
 
     /**
-     * DTO pour ENVOYER les données d'une publication
-     * (vers le dashboard ou le site client)
-     * "Response" = données envoyées par le serveur vers le client
+     * DTO pour ENVOYER les données (vers dashboard ou site client)
      */
     @Data
     @NoArgsConstructor
@@ -93,27 +66,34 @@ public class PublicationDTO {
         private String sousCategorie;
         private String auteur;
         private StatutPublication statut;
-        private String cheminAudio;    // URL pour écouter l'audio (partie 1)
-        private String cheminAudio2;   // URL pour écouter l'audio (partie 2)
-        private String cheminAudio3;   // URL pour écouter l'audio (partie 3)
-        private String cheminPdf;      // URL pour télécharger le PDF
-        private String imageUne;       // Image à la une
+
+        // ── Anciens champs audio (backward compat pour publications existantes) ──
+        private String cheminAudio;
+        private String cheminAudio2;
+        private String cheminAudio3;
+
+        // ── NOUVEAU : liste complète de tous les audios ──
+        // Contient TOUS les chemins dans l'ordre (Partie 1, 2, 3... illimité)
+        // Le frontend utilise cette liste en priorité
+        private List<String> cheminsAudio = new ArrayList<>();
+
+        private String cheminPdf;
+        private String imageUne;
         private String lienVideo;
         private String jourZoom;
         private String dateSession;
         private String tags;
-        private String resume;         // Résumé/extrait court
-        private String predicateur;    // Prédicateur/Orateur
+        private String resume;
+        private String predicateur;
         private Boolean commentairesActifs;
         private LocalDateTime dateCreation;
         private LocalDateTime dateModification;
         private LocalDateTime datePublication;
-        private int nombreCommentaires; // Compte des commentaires approuvés
+        private int nombreCommentaires;
     }
 
     /**
      * DTO pour les statistiques du tableau de bord
-     * Utilisé pour les 6 cartes en haut du dashboard
      */
     @Data
     @NoArgsConstructor

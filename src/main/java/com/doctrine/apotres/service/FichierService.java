@@ -11,172 +11,96 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * ============================================================
- * SERVICE FICHIER — VERSION CORRIGÉE
- *
- * CORRECTIONS :
- * 1. Ajout de sauvegarderImage() pour les images .jpg/.png/.webp
- *    Avant : sauvegarderAudio() était utilisé → plantait sur les images
- *    Maintenant : méthode dédiée avec extensions images autorisées
- * 2. Taille max audio augmentée à 200MB (sessions Zoom peuvent être longues)
- * ============================================================
+ * SERVICE FICHIER — version simple (disque local)
+ * Sauvegarde les fichiers dans le dossier "uploads/" sur le serveur
+ * Compatible Railway — fonctionne sans Cloudinary
  */
 @Service
 public class FichierService {
 
-    @Value("${app.upload.dir}")
+    @Value("${app.upload.dir:uploads}")
     private String dossierUpload;
 
-    // Extensions audio autorisées
-    private static final List<String> EXTENSIONS_AUDIO = Arrays.asList(
-        "mp3", "m4a", "ogg", "wav"
-    );
+    private static final List<String> EXTENSIONS_AUDIO = Arrays.asList("mp3", "m4a", "ogg", "wav");
+    private static final List<String> EXTENSIONS_IMAGE = Arrays.asList("jpg", "jpeg", "png", "webp", "gif");
+    private static final List<String> EXTENSIONS_PDF   = Arrays.asList("pdf");
 
-    // Extensions image autorisées
-    private static final List<String> EXTENSIONS_IMAGE = Arrays.asList(
-        "jpg", "jpeg", "png", "webp", "gif"
-    );
+    private static final long TAILLE_MAX_AUDIO = 200 * 1024 * 1024L; // 200 MB
+    private static final long TAILLE_MAX_IMAGE = 5   * 1024 * 1024L; // 5 MB
+    private static final long TAILLE_MAX_PDF   = 20  * 1024 * 1024L; // 20 MB
 
-    // Extensions PDF
-    private static final List<String> EXTENSIONS_PDF = Arrays.asList("pdf");
-
-    // Taille max audio : 200 MB (sessions Zoom longues)
-    private static final long TAILLE_MAX_AUDIO = 200 * 1024 * 1024L;
-
-    // Taille max image : 5 MB
-    private static final long TAILLE_MAX_IMAGE = 5 * 1024 * 1024L;
-
-    // Taille max PDF : 20 MB
-    private static final long TAILLE_MAX_PDF = 20 * 1024 * 1024L;
-
-
-    /**
-     * Sauvegarde un fichier audio
-     */
+    /** Sauvegarde un fichier audio sur le disque */
     public String sauvegarderAudio(MultipartFile fichier) throws IOException {
-        validerFichier(fichier, EXTENSIONS_AUDIO, TAILLE_MAX_AUDIO, "audio");
-
-        Path dossierAudios = Paths.get(dossierUpload, "audios");
-        Files.createDirectories(dossierAudios);
-
-        String nomFichier    = genererNomFichier(fichier.getOriginalFilename());
-        Path   cheminComplet = dossierAudios.resolve(nomFichier);
-        Files.copy(fichier.getInputStream(), cheminComplet, StandardCopyOption.REPLACE_EXISTING);
-
-        return dossierUpload + "/audios/" + nomFichier;
+        valider(fichier, EXTENSIONS_AUDIO, TAILLE_MAX_AUDIO, "audio");
+        return sauvegarder(fichier, "audios");
     }
 
-
-    /**
-     * ✅ NOUVELLE MÉTHODE : Sauvegarde une image
-     *
-     * Avant, sauvegarderAudio() était appelé pour les images.
-     * Cela causait une IllegalArgumentException :
-     * "Extension .jpg non autorisée pour audio"
-     * et faisait planter toute la requête → audio2 jamais sauvegardé.
-     */
+    /** Sauvegarde une image sur le disque */
     public String sauvegarderImage(MultipartFile fichier) throws IOException {
-        validerFichier(fichier, EXTENSIONS_IMAGE, TAILLE_MAX_IMAGE, "image");
-
-        Path dossierImages = Paths.get(dossierUpload, "images");
-        Files.createDirectories(dossierImages);
-
-        String nomFichier    = genererNomFichier(fichier.getOriginalFilename());
-        Path   cheminComplet = dossierImages.resolve(nomFichier);
-        Files.copy(fichier.getInputStream(), cheminComplet, StandardCopyOption.REPLACE_EXISTING);
-
-        return dossierUpload + "/images/" + nomFichier;
+        valider(fichier, EXTENSIONS_IMAGE, TAILLE_MAX_IMAGE, "image");
+        return sauvegarder(fichier, "images");
     }
 
-
-    /**
-     * Sauvegarde un fichier PDF
-     */
+    /** Sauvegarde un PDF sur le disque */
     public String sauvegarderPdf(MultipartFile fichier) throws IOException {
-        validerFichier(fichier, EXTENSIONS_PDF, TAILLE_MAX_PDF, "PDF");
-
-        Path dossierPdfs = Paths.get(dossierUpload, "pdfs");
-        Files.createDirectories(dossierPdfs);
-
-        String nomFichier    = genererNomFichier(fichier.getOriginalFilename());
-        Path   cheminComplet = dossierPdfs.resolve(nomFichier);
-        Files.copy(fichier.getInputStream(), cheminComplet, StandardCopyOption.REPLACE_EXISTING);
-
-        return dossierUpload + "/pdfs/" + nomFichier;
+        valider(fichier, EXTENSIONS_PDF, TAILLE_MAX_PDF, "PDF");
+        return sauvegarder(fichier, "pdfs");
     }
 
-
-    /**
-     * Supprime un fichier du serveur
-     */
+    /** Supprime un fichier du disque */
     public void supprimerFichier(String chemin) {
         if (chemin == null || chemin.isBlank()) return;
         try {
             Files.deleteIfExists(Paths.get(chemin));
         } catch (IOException e) {
-            System.err.println("Impossible de supprimer : " + chemin + " — " + e.getMessage());
+            System.err.println("Impossible de supprimer : " + chemin);
         }
     }
 
+    // ── Méthodes privées ──────────────────────────────────────────
 
-    /**
-     * Valide un fichier (extension + taille)
-     */
-    private void validerFichier(
-        MultipartFile fichier,
-        List<String> extensionsAutorisees,
-        long tailleMax,
-        String typeFichier
-    ) {
-        if (fichier == null || fichier.isEmpty()) {
-            throw new IllegalArgumentException("Le fichier " + typeFichier + " est vide");
-        }
+    private String sauvegarder(MultipartFile fichier, String sousDossier) throws IOException {
+        Path dossier = Paths.get(dossierUpload, sousDossier);
+        Files.createDirectories(dossier);
 
-        String nomOriginal = fichier.getOriginalFilename();
-        if (nomOriginal == null || !nomOriginal.contains(".")) {
+        String nomFichier = genererNom(fichier.getOriginalFilename());
+        Path chemin = dossier.resolve(nomFichier);
+        Files.copy(fichier.getInputStream(), chemin, StandardCopyOption.REPLACE_EXISTING);
+
+        // Retourne le chemin relatif accessible via /uploads/audios/nom.mp3
+        return dossierUpload + "/" + sousDossier + "/" + nomFichier;
+    }
+
+    private void valider(MultipartFile fichier, List<String> extensions, long tailleMax, String type) {
+        if (fichier == null || fichier.isEmpty())
+            throw new IllegalArgumentException("Le fichier " + type + " est vide");
+
+        String nom = fichier.getOriginalFilename();
+        if (nom == null || !nom.contains("."))
             throw new IllegalArgumentException("Nom de fichier invalide");
-        }
 
-        String extension = nomOriginal
-            .substring(nomOriginal.lastIndexOf(".") + 1)
-            .toLowerCase();
-
-        if (!extensionsAutorisees.contains(extension)) {
+        String ext = nom.substring(nom.lastIndexOf('.') + 1).toLowerCase();
+        if (!extensions.contains(ext))
             throw new IllegalArgumentException(
-                "Extension ." + extension + " non autorisée pour " + typeFichier +
-                ". Extensions acceptées : " + extensionsAutorisees
-            );
-        }
+                "Extension ." + ext + " non autorisée. Acceptées : " + extensions);
 
-        if (fichier.getSize() > tailleMax) {
+        if (fichier.getSize() > tailleMax)
             throw new IllegalArgumentException(
-                "Fichier trop grand : " + (fichier.getSize() / 1024 / 1024) + "MB. " +
-                "Maximum : " + (tailleMax / 1024 / 1024) + "MB"
-            );
-        }
+                "Fichier trop grand : " + (fichier.getSize()/1024/1024) + "MB. Max : " + (tailleMax/1024/1024) + "MB");
     }
 
-
-    /**
-     * Génère un nom de fichier unique
-     */
-    private String genererNomFichier(String nomOriginal) {
+    private String genererNom(String nomOriginal) {
         if (nomOriginal == null) nomOriginal = "fichier";
-
-        String extension = "";
-        int dernierPoint = nomOriginal.lastIndexOf(".");
-        if (dernierPoint > 0) {
-            extension  = nomOriginal.substring(dernierPoint);
-            nomOriginal= nomOriginal.substring(0, dernierPoint);
+        String ext = "";
+        int p = nomOriginal.lastIndexOf('.');
+        if (p > 0) {
+            ext = nomOriginal.substring(p);
+            nomOriginal = nomOriginal.substring(0, p);
         }
-
-        String nomNettoye = nomOriginal
-            .toLowerCase()
-            .replaceAll("[^a-z0-9.-]", "-")
+        String nom = nomOriginal.toLowerCase()
+            .replaceAll("[^a-z0-9]", "-")
             .replaceAll("-+", "-")
             .replaceAll("^-|-$", "");
-
-        String idUnique = UUID.randomUUID().toString().substring(0, 8);
-        return nomNettoye + "-" + idUnique + extension;
+        return nom + "-" + UUID.randomUUID().toString().substring(0, 8) + ext;
     }
 }

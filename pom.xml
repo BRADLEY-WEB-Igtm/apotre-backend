@@ -24,6 +24,7 @@
        artifactId = nom du projet
        version = version actuelle
        ============================================================ -->
+         
   <groupId>com.doctrine</groupId>
   <artifactId>apotres-backend</artifactId>
   <version>1.0.0</version>

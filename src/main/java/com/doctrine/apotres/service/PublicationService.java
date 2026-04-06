@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.doctrine.apotres.dto.PublicationDTO;
 import com.doctrine.apotres.entity.Publication;
@@ -14,12 +13,15 @@ import com.doctrine.apotres.repository.CommentaireRepository;
 import com.doctrine.apotres.repository.PublicationRepository;
 
 import jakarta.persistence.EntityNotFoundException;
-import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * SERVICE PUBLICATION — VERSION CLOUDINARY
+ *
+ * Simplifié : plus de gestion de fichiers ici.
+ * Les URLs Cloudinary arrivent directement dans le Request.
+ * On sauvegarde juste les URLs en base de données.
+ */
 @Service
 public class PublicationService {
 
@@ -29,81 +31,39 @@ public class PublicationService {
     @Autowired
     private CommentaireRepository commentaireRepository;
 
-    @Autowired
-    private FichierService fichierService;
-
-    // ================================================================
-    // CRÉER
-    // ================================================================
-    public PublicationDTO.Response creer(
-        PublicationDTO.Request request,
-        List<MultipartFile> fichiersAudio,
-        MultipartFile fichierImage,
-        MultipartFile fichierPdf
-    ) throws IOException {
+    // ── CRÉER ──────────────────────────────────────────────────────
+    public PublicationDTO.Response creer(PublicationDTO.Request request) {
 
         Publication pub = new Publication();
-        pub.setType(request.getType());
-        pub.setTitre(request.getTitre());
-        pub.setContenu(request.getContenu());
-        pub.setCategorie(request.getCategorie());
-        pub.setSousCategorie(request.getSousCategorie());
-        pub.setTags(request.getTags());
-        pub.setLienVideo(request.getLienVideo());
-        pub.setJourZoom(request.getJourZoom());
-        pub.setDateSession(request.getDateSession());
-        pub.setCommentairesActifs(request.getCommentairesActifs() != null ? request.getCommentairesActifs() : true);
-        if (request.getResume()      != null) pub.setResume(request.getResume());
-        if (request.getPredicateur() != null) pub.setPredicateur(request.getPredicateur());
+        remplirDepuisRequest(pub, request);
 
         String auteur = SecurityContextHolder.getContext().getAuthentication().getName();
         pub.setAuteur(auteur);
 
-        StatutPublication statut = request.getStatut() != null ? request.getStatut() : StatutPublication.BROUILLON;
+        StatutPublication statut = request.getStatut() != null
+            ? request.getStatut() : StatutPublication.BROUILLON;
         pub.setStatut(statut);
-        if (statut == StatutPublication.PUBLIE) pub.setDatePublication(LocalDateTime.now());
-
-        // Sauvegarde les audios (1, 2 ou 3 parties)
-        sauvegarderAudios(pub, fichiersAudio);
-
-        // Image à la une — méthode dédiée (accepte jpg/png/webp)
-        if (fichierImage != null && !fichierImage.isEmpty()) {
-            pub.setImageUne(fichierService.sauvegarderImage(fichierImage));
+        if (statut == StatutPublication.PUBLIE) {
+            pub.setDatePublication(LocalDateTime.now());
         }
 
-        // PDF
-        if (fichierPdf != null && !fichierPdf.isEmpty()) {
-            pub.setCheminPdf(fichierService.sauvegarderPdf(fichierPdf));
-        }
+        /* Sauvegarde les URLs Cloudinary directement */
+        pub.setCheminAudio(request.getCheminAudio());
+        pub.setCheminAudio2(request.getCheminAudio2());
+        pub.setCheminAudio3(request.getCheminAudio3());
+        pub.setImageUne(request.getImageUne());
+        pub.setCheminPdf(request.getCheminPdf());
 
         return convertirEnResponse(publicationRepository.save(pub));
     }
 
-    // ================================================================
-    // MODIFIER — signature corrigée pour accepter List<MultipartFile>
-    // ================================================================
-    public PublicationDTO.Response modifier(
-        Long id,
-        PublicationDTO.Request request,
-        List<MultipartFile> fichiersAudio,
-        MultipartFile fichierImage,
-        MultipartFile fichierPdf
-    ) throws IOException {
+    // ── MODIFIER ───────────────────────────────────────────────────
+    public PublicationDTO.Response modifier(Long id, PublicationDTO.Request request) {
 
         Publication pub = publicationRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Publication introuvable : " + id));
 
-        pub.setTitre(request.getTitre());
-        pub.setContenu(request.getContenu());
-        pub.setCategorie(request.getCategorie());
-        pub.setSousCategorie(request.getSousCategorie());
-        pub.setTags(request.getTags());
-        pub.setLienVideo(request.getLienVideo());
-        pub.setJourZoom(request.getJourZoom());
-        pub.setDateSession(request.getDateSession());
-        if (request.getResume()      != null) pub.setResume(request.getResume());
-        if (request.getPredicateur() != null) pub.setPredicateur(request.getPredicateur());
-        if (request.getCommentairesActifs() != null) pub.setCommentairesActifs(request.getCommentairesActifs());
+        remplirDepuisRequest(pub, request);
 
         if (request.getStatut() != null && request.getStatut() != pub.getStatut()) {
             pub.setStatut(request.getStatut());
@@ -112,50 +72,33 @@ public class PublicationService {
             }
         }
 
-        // Remplace les audios si de nouveaux sont fournis
-        if (fichiersAudio != null && !fichiersAudio.isEmpty()) {
-            fichierService.supprimerFichier(pub.getCheminAudio());
-            fichierService.supprimerFichier(pub.getCheminAudio2());
-            fichierService.supprimerFichier(pub.getCheminAudio3());
-            pub.setCheminAudio(null);
-            pub.setCheminAudio2(null);
-            pub.setCheminAudio3(null);
-            sauvegarderAudios(pub, fichiersAudio);
-        }
-
-        // Remplace l'image si une nouvelle est fournie
-        if (fichierImage != null && !fichierImage.isEmpty()) {
-            fichierService.supprimerFichier(pub.getImageUne());
-            pub.setImageUne(fichierService.sauvegarderImage(fichierImage));
-        }
-
-        // Remplace le PDF si un nouveau est fourni
-        if (fichierPdf != null && !fichierPdf.isEmpty()) {
-            fichierService.supprimerFichier(pub.getCheminPdf());
-            pub.setCheminPdf(fichierService.sauvegarderPdf(fichierPdf));
-        }
+        /* Met à jour les URLs si de nouvelles sont fournies */
+        if (request.getCheminAudio()  != null) pub.setCheminAudio(request.getCheminAudio());
+        if (request.getCheminAudio2() != null) pub.setCheminAudio2(request.getCheminAudio2());
+        if (request.getCheminAudio3() != null) pub.setCheminAudio3(request.getCheminAudio3());
+        if (request.getImageUne()     != null) pub.setImageUne(request.getImageUne());
+        if (request.getCheminPdf()    != null) pub.setCheminPdf(request.getCheminPdf());
 
         return convertirEnResponse(publicationRepository.save(pub));
     }
 
-    // ================================================================
-    // MÉTHODE PRIVÉE — sauvegarde 1, 2 ou 3 audios
-    // ================================================================
-    private void sauvegarderAudios(Publication pub, List<MultipartFile> fichiers) throws IOException {
-        if (fichiers == null || fichiers.isEmpty()) return;
-
-        List<MultipartFile> valides = fichiers.stream()
-            .filter(f -> f != null && !f.isEmpty())
-            .collect(Collectors.toList());
-
-        if (valides.size() >= 1) pub.setCheminAudio(fichierService.sauvegarderAudio(valides.get(0)));
-        if (valides.size() >= 2) pub.setCheminAudio2(fichierService.sauvegarderAudio(valides.get(1)));
-        if (valides.size() >= 3) pub.setCheminAudio3(fichierService.sauvegarderAudio(valides.get(2)));
+    // ── Remplit les champs communs depuis le Request ───────────────
+    private void remplirDepuisRequest(Publication pub, PublicationDTO.Request req) {
+        pub.setType(req.getType());
+        pub.setTitre(req.getTitre());
+        pub.setContenu(req.getContenu());
+        pub.setCategorie(req.getCategorie());
+        pub.setSousCategorie(req.getSousCategorie());
+        pub.setTags(req.getTags());
+        pub.setLienVideo(req.getLienVideo());
+        pub.setJourZoom(req.getJourZoom());
+        pub.setDateSession(req.getDateSession());
+        pub.setCommentairesActifs(req.getCommentairesActifs() != null ? req.getCommentairesActifs() : true);
+        if (req.getResume()      != null) pub.setResume(req.getResume());
+        if (req.getPredicateur() != null) pub.setPredicateur(req.getPredicateur());
     }
 
-    // ================================================================
-    // SUSPENDRE / PUBLIER / SUPPRIMER
-    // ================================================================
+    // ── SUSPENDRE / PUBLIER / SUPPRIMER ───────────────────────────
     public PublicationDTO.Response suspendre(Long id) {
         Publication pub = trouverParId(id);
         pub.setStatut(StatutPublication.SUSPENDU);
@@ -171,17 +114,11 @@ public class PublicationService {
 
     public void supprimer(Long id) {
         Publication pub = trouverParId(id);
-        fichierService.supprimerFichier(pub.getCheminAudio());
-        fichierService.supprimerFichier(pub.getCheminAudio2());
-        fichierService.supprimerFichier(pub.getCheminAudio3());
-        fichierService.supprimerFichier(pub.getCheminPdf());
-        fichierService.supprimerFichier(pub.getImageUne());
+        /* Les fichiers sont sur Cloudinary — pas besoin de les supprimer du disque */
         publicationRepository.delete(pub);
     }
 
-    // ================================================================
-    // LISTER
-    // ================================================================
+    // ── LISTER ────────────────────────────────────────────────────
     public Page<PublicationDTO.Response> listerPubliees(
         TypePublication type, String categorie, String jourZoom,
         String recherche, int page, int size
@@ -208,7 +145,6 @@ public class PublicationService {
     ) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Publication> publications;
-
         if (type != null && statut != null) {
             publications = publicationRepository.findByTypeAndStatutOrderByDateCreationDesc(type, statut, pageable);
         } else if (statut != null) {
@@ -236,9 +172,6 @@ public class PublicationService {
         return convertirEnResponse(trouverParId(id));
     }
 
-    // ================================================================
-    // UTILITAIRES PRIVÉS
-    // ================================================================
     private Publication trouverParId(Long id) {
         return publicationRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Publication introuvable : " + id));
@@ -269,7 +202,6 @@ public class PublicationService {
         dto.setDateCreation(pub.getDateCreation());
         dto.setDateModification(pub.getDateModification());
         dto.setDatePublication(pub.getDatePublication());
-
         long nb = commentaireRepository.countByPublicationIdAndStatut(
             pub.getId(),
             com.doctrine.apotres.entity.Commentaire.StatutCommentaire.APPROUVE

@@ -10,23 +10,15 @@ import com.doctrine.apotres.entity.Publication.TypePublication;
 import com.doctrine.apotres.entity.Publication.StatutPublication;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.ArrayList;
 
 /**
- * ============================================================
- * DTOs PUBLICATION — VERSION CORRIGÉE
+ * DTOs PUBLICATION — VERSION CLOUDINARY
  *
- * CORRECTION dans Response :
- * - Ajout de List<String> cheminsAudio pour les audios illimités
- * - Les anciens champs cheminAudio/2/3 conservés (backward compat)
- * ============================================================
+ * Request inclut maintenant les URLs Cloudinary directement.
+ * Le frontend uploade sur Cloudinary puis envoie les URLs ici.
  */
 public class PublicationDTO {
 
-    /**
-     * DTO pour RECEVOIR les données (depuis le formulaire dashboard)
-     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -49,11 +41,25 @@ public class PublicationDTO {
         private String resume;
         private String predicateur;
         private Boolean commentairesActifs;
+
+        /* URLs Cloudinary des fichiers — envoyées par le frontend */
+        private String cheminAudio;
+        /* URL complète Cloudinary de l'audio partie 1 */
+        /* Ex: "https://res.cloudinary.com/dqmy8sqmg/video/upload/doctrine-apotres/p1.mp3" */
+
+        private String cheminAudio2;
+        /* URL de l'audio partie 2 (null si pas de partie 2) */
+
+        private String cheminAudio3;
+        /* URL de l'audio partie 3 (null si pas de partie 3) */
+
+        private String imageUne;
+        /* URL de l'image à la une sur Cloudinary */
+
+        private String cheminPdf;
+        /* URL du PDF sur Cloudinary */
     }
 
-    /**
-     * DTO pour ENVOYER les données (vers dashboard ou site client)
-     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -66,17 +72,9 @@ public class PublicationDTO {
         private String sousCategorie;
         private String auteur;
         private StatutPublication statut;
-
-        // ── Anciens champs audio (backward compat pour publications existantes) ──
         private String cheminAudio;
         private String cheminAudio2;
         private String cheminAudio3;
-
-        // ── NOUVEAU : liste complète de tous les audios ──
-        // Contient TOUS les chemins dans l'ordre (Partie 1, 2, 3... illimité)
-        // Le frontend utilise cette liste en priorité
-        private List<String> cheminsAudio = new ArrayList<>();
-
         private String cheminPdf;
         private String imageUne;
         private String lienVideo;
@@ -92,9 +90,6 @@ public class PublicationDTO {
         private int nombreCommentaires;
     }
 
-    /**
-     * DTO pour les statistiques du tableau de bord
-     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

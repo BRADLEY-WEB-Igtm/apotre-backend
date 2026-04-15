@@ -10,4 +10,4 @@ WORKDIR /app
 COPY --from=build /app/target/apotres-backend-1.0.0.jar app.jar
 RUN mkdir -p uploads/audios uploads/images uploads/pdfs
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"] 

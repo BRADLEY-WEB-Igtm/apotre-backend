@@ -20,9 +20,7 @@ import java.util.Map;
 /**
  * SERVICE PUBLICATION — VERSION CLOUDINARY
  *
- * Gère la création, modification, suppression des publications.
- * Lors de la suppression, les fichiers sont aussi supprimés de Cloudinary
- * pour libérer l'espace de stockage.
+ 
  */
 @Service
 public class PublicationService {
@@ -35,7 +33,7 @@ public class PublicationService {
 
     @Autowired
     private Cloudinary cloudinary;
-    /* Bean Cloudinary injecté — configuré via CLOUDINARY_URL dans les variables d'environnement */
+    
 
     // ── CRÉER ──────────────────────────────────────────────────────
     public PublicationDTO.Response creer(PublicationDTO.Request request) {
@@ -126,22 +124,16 @@ public class PublicationService {
         /*
          * SUPPRESSION CLOUDINARY
          *
-         * Analogie : c'est comme vider la corbeille après avoir supprimé un fichier.
-         * Sans ça, le fichier disparaît de la liste mais reste sur le disque dur.
-         *
-         * On supprime chaque fichier lié à cette publication :
-         * - Audios (cheminAudio, cheminAudio2, cheminAudio3)
-         * - Image à la une (imageUne)
-         * - PDF (cheminPdf)
+       
          */
         supprimerFichierCloudinary(pub.getCheminAudio(),  "video");
-        /* "video" = type Cloudinary pour les fichiers audio aussi */
+     
 
         supprimerFichierCloudinary(pub.getCheminAudio2(), "video");
         supprimerFichierCloudinary(pub.getCheminAudio3(), "video");
         supprimerFichierCloudinary(pub.getImageUne(),     "image");
         supprimerFichierCloudinary(pub.getCheminPdf(),    "raw");
-        /* "raw" = type Cloudinary pour les fichiers PDF */
+       
 
         /* Supprime l'entrée en base de données après le nettoyage Cloudinary */
         publicationRepository.delete(pub);
@@ -149,17 +141,7 @@ public class PublicationService {
 
     // ── SUPPRESSION D'UN FICHIER CLOUDINARY ───────────────────────
     /**
-     * Supprime un fichier sur Cloudinary à partir de son URL.
-     *
-     * Exemple d'URL Cloudinary :
-     * https://res.cloudinary.com/dqmy8sqmg/video/upload/v1776504400/doctrine-apotres/audio123.mp3
-     *
-     * Pour supprimer, Cloudinary a besoin du "public_id" :
-     * → doctrine-apotres/audio123
-     * (sans l'extension pour image et video, avec extension pour raw/PDF)
-     *
-     * @param url          L'URL complète du fichier sur Cloudinary
-     * @param resourceType "image", "video", ou "raw" selon le type de fichier
+     
      */
     private void supprimerFichierCloudinary(String url, String resourceType) {
 
@@ -182,7 +164,7 @@ public class PublicationService {
             Map result = cloudinary.uploader().destroy(
                 publicId,
                 Map.of("resource_type", resourceType)
-                /* resource_type = indique à Cloudinary où chercher le fichier */
+               
             );
 
             /* Log du résultat pour le débogage */
@@ -194,30 +176,13 @@ public class PublicationService {
             }
 
         } catch (Exception e) {
-            /*
-             * On logge l'erreur mais on ne bloque pas la suppression en BD.
-             * Si Cloudinary est indisponible, la publication est quand même supprimée.
-             */
+          
             System.err.println("Erreur suppression Cloudinary pour " + url + " : " + e.getMessage());
         }
     }
 
     // ── EXTRACTION DU PUBLIC_ID DEPUIS UNE URL CLOUDINARY ─────────
-    /**
-     * Extrait le public_id Cloudinary depuis une URL complète.
-     *
-     * Format URL : https://res.cloudinary.com/{cloud}/resource_type/upload/v{version}/{public_id}.{ext}
-     *
-     * Exemples :
-     * - https://res.cloudinary.com/dqmy8sqmg/video/upload/v123/doctrine-apotres/audio.mp3
-     *   → public_id = "doctrine-apotres/audio"     (sans extension pour video)
-     *
-     * - https://res.cloudinary.com/dqmy8sqmg/image/upload/v123/doctrine-apotres/photo.jpg
-     *   → public_id = "doctrine-apotres/photo"     (sans extension pour image)
-     *
-     * - https://res.cloudinary.com/dqmy8sqmg/raw/upload/v123/doctrine-apotres/doc.pdf
-     *   → public_id = "doctrine-apotres/doc.pdf"   (AVEC extension pour raw/PDF)
-     */
+   
     private String extrairePublicId(String url, String resourceType) {
 
         try {

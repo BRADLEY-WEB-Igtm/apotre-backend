@@ -20,11 +20,7 @@
 
   <!-- ============================================================
        IDENTITÉ DU PROJET
-       groupId = organisation (com.doctrine)
-       artifactId = nom du projet
-       version = version actuelle
        ============================================================ -->
-         
   <groupId>com.doctrine</groupId>
   <artifactId>apotres-backend</artifactId>
   <version>1.0.0</version>
@@ -51,7 +47,6 @@
     <!-- ============================================================
          SPRING DATA JPA
          Simplifie l'accès à la base de données
-         Permet de faire des requêtes SQL sans écrire du SQL brut
          ============================================================ -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -61,7 +56,6 @@
     <!-- ============================================================
          SPRING SECURITY
          Gère l'authentification et la protection des endpoints
-         L'admin doit se connecter pour accéder au dashboard
          ============================================================ -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -70,9 +64,6 @@
 
     <!-- ============================================================
          JSON WEB TOKEN (JWT)
-         Permet de créer des tokens de session sécurisés
-         L'admin reçoit un token à la connexion et l'envoie
-         dans chaque requête pour prouver son identité
          ============================================================ -->
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
@@ -94,7 +85,6 @@
 
     <!-- ============================================================
          MYSQL CONNECTOR
-         Pilote Java pour se connecter à une base MySQL
          ============================================================ -->
     <dependency>
       <groupId>com.mysql</groupId>
@@ -104,8 +94,6 @@
 
     <!-- ============================================================
          VALIDATION
-         Permet de valider les données reçues (@NotNull, @Email...)
-         Évite d'enregistrer des données incorrectes en base
          ============================================================ -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -114,8 +102,6 @@
 
     <!-- ============================================================
          LOMBOK
-         Génère automatiquement getters, setters, constructeurs
-         Réduit le code répétitif dans les entités
          ============================================================ -->
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -124,8 +110,18 @@
     </dependency>
 
     <!-- ============================================================
+         CLOUDINARY SDK
+         Permet d'uploader et supprimer des fichiers sur Cloudinary
+         depuis le backend Java (images, audios, PDFs)
+         ============================================================ -->
+    <dependency>
+      <groupId>com.cloudinary</groupId>
+      <artifactId>cloudinary-http44</artifactId>
+      <version>1.34.0</version>
+    </dependency>
+
+    <!-- ============================================================
          TESTS
-         Framework de tests unitaires Spring Boot
          ============================================================ -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -142,7 +138,6 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
-          <!-- Exclut Lombok du JAR final car inutile à l'exécution -->
           <excludes>
             <exclude>
               <groupId>org.projectlombok</groupId>

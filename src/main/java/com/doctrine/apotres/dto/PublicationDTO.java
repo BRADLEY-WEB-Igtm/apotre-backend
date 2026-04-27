@@ -12,10 +12,7 @@ import com.doctrine.apotres.entity.Publication.StatutPublication;
 import java.time.LocalDateTime;
 
 /**
- * DTOs PUBLICATION — VERSION CLOUDINARY
- *
- * Request inclut maintenant les URLs Cloudinary directement.
- * Le frontend uploade sur Cloudinary puis envoie les URLs ici.
+ * DTOs PUBLICATION — VERSION CLOUDINARY — 5 PARTIES AUDIO
  */
 public class PublicationDTO {
 
@@ -42,22 +39,15 @@ public class PublicationDTO {
         private String predicateur;
         private Boolean commentairesActifs;
 
-        /* URLs Cloudinary des fichiers — envoyées par le frontend */
-        private String cheminAudio;
-        /* URL complète Cloudinary de l'audio partie 1 */
-        /* Ex: "https://res.cloudinary.com/dqmy8sqmg/video/upload/doctrine-apotres/p1.mp3" */
-
-        private String cheminAudio2;
-        /* URL de l'audio partie 2 (null si pas de partie 2) */
-
-        private String cheminAudio3;
-        /* URL de l'audio partie 3 (null si pas de partie 3) */
+        /* URLs Cloudinary — 5 parties audio maximum */
+        private String cheminAudio;   /* Partie 1 */
+        private String cheminAudio2;  /* Partie 2 */
+        private String cheminAudio3;  /* Partie 3 */
+        private String cheminAudio4;  /* Partie 4 — nouveau */
+        private String cheminAudio5;  /* Partie 5 — nouveau */
 
         private String imageUne;
-        /* URL de l'image à la une sur Cloudinary */
-
         private String cheminPdf;
-        /* URL du PDF sur Cloudinary */
     }
 
     @Data
@@ -72,9 +62,14 @@ public class PublicationDTO {
         private String sousCategorie;
         private String auteur;
         private StatutPublication statut;
+
+        /* 5 parties audio dans la réponse */
         private String cheminAudio;
         private String cheminAudio2;
         private String cheminAudio3;
+        private String cheminAudio4;  /* Partie 4 — nouveau */
+        private String cheminAudio5;  /* Partie 5 — nouveau */
+
         private String cheminPdf;
         private String imageUne;
         private String lienVideo;

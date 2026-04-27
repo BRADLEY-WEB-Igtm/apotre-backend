@@ -13,17 +13,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ============================================================
- * ENTITÉ PUBLICATION — VERSION CORRIGÉE
+ * ENTITÉ PUBLICATION — 5 PARTIES AUDIO
  *
- * CORRECTION : les audios sont maintenant stockés dans une liste
- * dynamique (table séparée publication_audios) au lieu de 3
- * colonnes fixes. Supporte un nombre illimité de parties audio.
+ * cheminAudio  = partie 1
+ * cheminAudio2 = partie 2
+ * cheminAudio3 = partie 3
+ * cheminAudio4 = partie 4 — nouveau
+ * cheminAudio5 = partie 5 — nouveau
  *
- * Backward compatible : les anciennes colonnes chemin_audio,
- * chemin_audio2, chemin_audio3 sont conservées pour ne pas
- * perdre les publications déjà en base de données.
- * ============================================================
+ * Spring crée automatiquement les colonnes manquantes en BD
+ * au prochain démarrage grâce à ddl-auto=update
  */
 @Entity
 @Table(name = "publications")
@@ -62,53 +61,40 @@ public class Publication {
     @Column(name = "statut", nullable = false)
     private StatutPublication statut = StatutPublication.BROUILLON;
 
-    // ============================================================
-    // ANCIENS CHAMPS AUDIO — conservés pour backward compatibility
-    // Les publications déjà en BD continuent de fonctionner
-    // Les NOUVELLES publications utilisent cheminsAudio (ci-dessous)
-    // ============================================================
+    /* ── CHAMPS AUDIO — 5 parties ── */
 
     @Column(name = "chemin_audio", length = 500)
     private String cheminAudio;
+    /* URL Cloudinary de la partie 1 */
 
     @Column(name = "chemin_audio2", length = 500)
     private String cheminAudio2;
+    /* URL Cloudinary de la partie 2 */
 
     @Column(name = "chemin_audio3", length = 500)
     private String cheminAudio3;
+    /* URL Cloudinary de la partie 3 */
 
-    // ============================================================
-    // NOUVEAU — LISTE DYNAMIQUE D'AUDIOS (nombre illimité)
-    //
-    // @ElementCollection = crée une table séparée "publication_audios"
-    // avec les colonnes : publication_id + chemin + position
-    //
-    // @OrderColumn = conserve l'ordre des parties (Partie 1, 2, 3...)
-    //
-    // Quand Spring voit ddl-auto=update, il crée cette table
-    // automatiquement au prochain démarrage sans toucher les données
-    // ============================================================
+    @Column(name = "chemin_audio4", length = 500)
+    private String cheminAudio4;
+    /* URL Cloudinary de la partie 4 — Spring ajoute cette colonne automatiquement */
+
+    @Column(name = "chemin_audio5", length = 500)
+    private String cheminAudio5;
+    /* URL Cloudinary de la partie 5 — Spring ajoute cette colonne automatiquement */
+
+    /* ── LISTE DYNAMIQUE (backward compatibility) ── */
+
     @ElementCollection(fetch = FetchType.EAGER)
-    // EAGER = charge les audios en même temps que la publication
-    // (pas de requête supplémentaire — important pour les performances)
-
     @CollectionTable(
         name = "publication_audios",
-        // Nom de la table créée automatiquement en BD
         joinColumns = @JoinColumn(name = "publication_id")
-        // Colonne de jointure : publication_id → relie à publications.id
     )
     @OrderColumn(name = "position")
-    // position = conserve l'ordre d'insertion (Partie 1 avant Partie 2)
-
     @Column(name = "chemin")
-    // Chaque ligne = un chemin audio ex: "uploads/audios/zoom-abc.mp3"
     private List<String> cheminsAudio = new ArrayList<>();
-    // ArrayList = liste vide par défaut (pas null)
 
-    // ============================================================
-    // AUTRES CHAMPS (inchangés)
-    // ============================================================
+    /* ── AUTRES CHAMPS ── */
 
     @Column(name = "resume", length = 1000)
     private String resume;
@@ -161,17 +147,10 @@ public class Publication {
     }
 
     public enum TypePublication {
-        ENSEIGNEMENT,
-        AUDIO,
-        ZOOM,
-        RADIO,
-        LIVRE,
-        VIDEO
+        ENSEIGNEMENT, AUDIO, ZOOM, RADIO, LIVRE, VIDEO
     }
 
     public enum StatutPublication {
-        PUBLIE,
-        BROUILLON,
-        SUSPENDU
+        PUBLIE, BROUILLON, SUSPENDU
     }
 }

@@ -18,11 +18,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * SERVICE PUBLICATION — VERSION CLOUDINARY
- *
- * Gère la création, modification, suppression des publications.
- * Lors de la suppression, les fichiers sont aussi supprimés de Cloudinary
- * pour libérer l'espace de stockage.
+ * SERVICE PUBLICATION — 5 PARTIES AUDIO
  */
 @Service
 public class PublicationService {
@@ -35,7 +31,6 @@ public class PublicationService {
 
     @Autowired
     private Cloudinary cloudinary;
-    /* Bean Cloudinary injecté — configuré via CLOUDINARY_URL dans les variables d'environnement */
 
     // ── CRÉER ──────────────────────────────────────────────────────
     public PublicationDTO.Response creer(PublicationDTO.Request request) {
@@ -53,10 +48,12 @@ public class PublicationService {
             pub.setDatePublication(LocalDateTime.now());
         }
 
-        /* Sauvegarde les URLs Cloudinary directement */
+        /* Sauvegarde les 5 URLs Cloudinary */
         pub.setCheminAudio(request.getCheminAudio());
         pub.setCheminAudio2(request.getCheminAudio2());
         pub.setCheminAudio3(request.getCheminAudio3());
+        pub.setCheminAudio4(request.getCheminAudio4());
+        pub.setCheminAudio5(request.getCheminAudio5());
         pub.setImageUne(request.getImageUne());
         pub.setCheminPdf(request.getCheminPdf());
 
@@ -82,13 +79,15 @@ public class PublicationService {
         if (request.getCheminAudio()  != null) pub.setCheminAudio(request.getCheminAudio());
         if (request.getCheminAudio2() != null) pub.setCheminAudio2(request.getCheminAudio2());
         if (request.getCheminAudio3() != null) pub.setCheminAudio3(request.getCheminAudio3());
+        if (request.getCheminAudio4() != null) pub.setCheminAudio4(request.getCheminAudio4());
+        if (request.getCheminAudio5() != null) pub.setCheminAudio5(request.getCheminAudio5());
         if (request.getImageUne()     != null) pub.setImageUne(request.getImageUne());
         if (request.getCheminPdf()    != null) pub.setCheminPdf(request.getCheminPdf());
 
         return convertirEnResponse(publicationRepository.save(pub));
     }
 
-    // ── Remplit les champs communs depuis le Request ───────────────
+    // ── Remplit les champs communs ─────────────────────────────────
     private void remplirDepuisRequest(Publication pub, PublicationDTO.Request req) {
         pub.setType(req.getType());
         pub.setTitre(req.getTitre());
@@ -118,139 +117,57 @@ public class PublicationService {
         return convertirEnResponse(publicationRepository.save(pub));
     }
 
-    // ── SUPPRIMER — avec nettoyage Cloudinary ─────────────────────
+    // ── SUPPRIMER — avec nettoyage Cloudinary sur les 5 parties ───
     public void supprimer(Long id) {
 
         Publication pub = trouverParId(id);
 
-        /*
-         * SUPPRESSION CLOUDINARY
-         *
-         * Analogie : c'est comme vider la corbeille après avoir supprimé un fichier.
-         * Sans ça, le fichier disparaît de la liste mais reste sur le disque dur.
-         *
-         * On supprime chaque fichier lié à cette publication :
-         * - Audios (cheminAudio, cheminAudio2, cheminAudio3)
-         * - Image à la une (imageUne)
-         * - PDF (cheminPdf)
-         */
+        /* Supprime les 5 parties audio sur Cloudinary */
         supprimerFichierCloudinary(pub.getCheminAudio(),  "video");
-        /* "video" = type Cloudinary pour les fichiers audio aussi */
-
         supprimerFichierCloudinary(pub.getCheminAudio2(), "video");
         supprimerFichierCloudinary(pub.getCheminAudio3(), "video");
-        supprimerFichierCloudinary(pub.getImageUne(),     "image");
-        supprimerFichierCloudinary(pub.getCheminPdf(),    "raw");
-        /* "raw" = type Cloudinary pour les fichiers PDF */
+        supprimerFichierCloudinary(pub.getCheminAudio4(), "video");
+        supprimerFichierCloudinary(pub.getCheminAudio5(), "video");
 
-        /* Supprime l'entrée en base de données après le nettoyage Cloudinary */
+        /* Supprime l'image et le PDF */
+        supprimerFichierCloudinary(pub.getImageUne(),  "image");
+        supprimerFichierCloudinary(pub.getCheminPdf(), "raw");
+
         publicationRepository.delete(pub);
     }
 
-    // ── SUPPRESSION D'UN FICHIER CLOUDINARY ───────────────────────
-    /**
-     * Supprime un fichier sur Cloudinary à partir de son URL.
-     *
-     * Exemple d'URL Cloudinary :
-     * https://res.cloudinary.com/dqmy8sqmg/video/upload/v1776504400/doctrine-apotres/audio123.mp3
-     *
-     * Pour supprimer, Cloudinary a besoin du "public_id" :
-     * → doctrine-apotres/audio123
-     * (sans l'extension pour image et video, avec extension pour raw/PDF)
-     *
-     * @param url          L'URL complète du fichier sur Cloudinary
-     * @param resourceType "image", "video", ou "raw" selon le type de fichier
-     */
+    // ── SUPPRESSION CLOUDINARY ─────────────────────────────────────
     private void supprimerFichierCloudinary(String url, String resourceType) {
-
-        /* Ne fait rien si l'URL est nulle ou vide */
         if (url == null || url.isBlank()) return;
-
-        /* Vérifie que c'est bien une URL Cloudinary */
         if (!url.contains("cloudinary.com")) return;
-
         try {
-            /* Extrait le public_id depuis l'URL */
             String publicId = extrairePublicId(url, resourceType);
-
-            if (publicId == null || publicId.isBlank()) {
-                System.err.println("Impossible d'extraire le public_id depuis : " + url);
-                return;
-            }
-
-            /* Appelle l'API Cloudinary pour supprimer le fichier */
-            Map result = cloudinary.uploader().destroy(
-                publicId,
-                Map.of("resource_type", resourceType)
-                /* resource_type = indique à Cloudinary où chercher le fichier */
-            );
-
-            /* Log du résultat pour le débogage */
+            if (publicId == null || publicId.isBlank()) return;
+            Map result = cloudinary.uploader().destroy(publicId, Map.of("resource_type", resourceType));
             String statut = (String) result.get("result");
             if ("ok".equals(statut)) {
-                System.out.println("✅ Cloudinary — fichier supprimé : " + publicId);
+                System.out.println("✅ Cloudinary supprimé : " + publicId);
             } else {
-                System.err.println("⚠️ Cloudinary — suppression échouée pour : " + publicId + " → " + statut);
+                System.err.println("⚠️ Cloudinary échec : " + publicId + " → " + statut);
             }
-
         } catch (Exception e) {
-            /*
-             * On logge l'erreur mais on ne bloque pas la suppression en BD.
-             * Si Cloudinary est indisponible, la publication est quand même supprimée.
-             */
-            System.err.println("Erreur suppression Cloudinary pour " + url + " : " + e.getMessage());
+            System.err.println("Erreur Cloudinary pour " + url + " : " + e.getMessage());
         }
     }
 
-    // ── EXTRACTION DU PUBLIC_ID DEPUIS UNE URL CLOUDINARY ─────────
-    /**
-     * Extrait le public_id Cloudinary depuis une URL complète.
-     *
-     * Format URL : https://res.cloudinary.com/{cloud}/resource_type/upload/v{version}/{public_id}.{ext}
-     *
-     * Exemples :
-     * - https://res.cloudinary.com/dqmy8sqmg/video/upload/v123/doctrine-apotres/audio.mp3
-     *   → public_id = "doctrine-apotres/audio"     (sans extension pour video)
-     *
-     * - https://res.cloudinary.com/dqmy8sqmg/image/upload/v123/doctrine-apotres/photo.jpg
-     *   → public_id = "doctrine-apotres/photo"     (sans extension pour image)
-     *
-     * - https://res.cloudinary.com/dqmy8sqmg/raw/upload/v123/doctrine-apotres/doc.pdf
-     *   → public_id = "doctrine-apotres/doc.pdf"   (AVEC extension pour raw/PDF)
-     */
     private String extrairePublicId(String url, String resourceType) {
-
         try {
-            /* Sépare l'URL au niveau de "/upload/" */
             String[] parties = url.split("/upload/");
             if (parties.length < 2) return null;
-
-            /* La partie droite contient : v{version}/{dossier}/{fichier}.{ext} */
             String parteDroite = parties[1];
-
-            /* Supprime le préfixe de version s'il existe (ex: "v1776504400/") */
             if (parteDroite.matches("v\\d+/.*")) {
                 parteDroite = parteDroite.replaceFirst("v\\d+/", "");
-                /* replaceFirst avec regex = supprime "v" suivi de chiffres suivi de "/" */
             }
-
-            /* Pour les fichiers raw (PDF), on garde l'extension */
-            if ("raw".equals(resourceType)) {
-                return parteDroite;
-                /* Ex: "doctrine-apotres/document.pdf" */
-            }
-
-            /* Pour image et video, on supprime l'extension */
+            if ("raw".equals(resourceType)) return parteDroite;
             int dernierPoint = parteDroite.lastIndexOf('.');
-            if (dernierPoint > 0) {
-                return parteDroite.substring(0, dernierPoint);
-                /* Ex: "doctrine-apotres/audio123" sans ".mp3" */
-            }
-
+            if (dernierPoint > 0) return parteDroite.substring(0, dernierPoint);
             return parteDroite;
-
         } catch (Exception e) {
-            System.err.println("Erreur extraction public_id depuis " + url + " : " + e.getMessage());
             return null;
         }
     }
@@ -327,6 +244,8 @@ public class PublicationService {
         dto.setCheminAudio(pub.getCheminAudio());
         dto.setCheminAudio2(pub.getCheminAudio2());
         dto.setCheminAudio3(pub.getCheminAudio3());
+        dto.setCheminAudio4(pub.getCheminAudio4());   /* Partie 4 */
+        dto.setCheminAudio5(pub.getCheminAudio5());   /* Partie 5 */
         dto.setCheminPdf(pub.getCheminPdf());
         dto.setImageUne(pub.getImageUne());
         dto.setLienVideo(pub.getLienVideo());

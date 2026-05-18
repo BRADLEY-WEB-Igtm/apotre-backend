@@ -99,6 +99,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasAnyRole("SUPER_ADMIN", "ADMIN", "EDITEUR")
                 /* hasAnyRole = vérifie que l'utilisateur a l'un de ces rôles */
 
+                // Lectures publiques — le site client lit les publications
+               .requestMatchers(HttpMethod.GET, "/api/publications/**").permitAll()
+               .requestMatchers(HttpMethod.GET, "/api/commentaires/approuves/**").permitAll()
+               .requestMatchers(HttpMethod.GET, "/api/photos/**").permitAll()   // ← ajoute cette ligne
+
                 /* Toutes les autres routes nécessitent au minimum d'être authentifié */
                 .anyRequest().authenticated()
             )

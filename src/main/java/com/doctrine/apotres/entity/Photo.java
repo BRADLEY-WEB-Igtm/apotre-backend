@@ -1,4 +1,3 @@
-
 package com.doctrine.apotres.entity;
 
 import jakarta.persistence.*;
